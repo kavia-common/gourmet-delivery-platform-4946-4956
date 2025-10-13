@@ -15,7 +15,16 @@ async function listMenuItems({ restaurantId }) {
   }
 
   const docs = await col.find(query).limit(500).toArray();
-  return docs.map((d) => ({ ...d, id: d._id.toString(), restaurantId: d.restaurantId?.toString() }));
+  return docs.map((d) => ({
+    id: d._id.toString(),
+    restaurantId: d.restaurantId?.toString(),
+    name: d.name,
+    description: d.description || '',
+    price: typeof d.price === 'number' ? d.price : null,
+    imageUrl: d.imageUrl || '',
+    categories: d.categories || [],
+    options: d.options || [],
+  }));
 }
 
 module.exports = {

@@ -5,14 +5,24 @@ async function createOrder({ userId, restaurantId, items, notes }) {
   const db = await getDb();
   const orders = db.collection('orders');
 
-  const doc = {
-    userId: toObjectId(userId),
-    restaurantId: toObjectId(restaurantId),
-    items: (items || []).map((i) => ({
+  const uId = toObjectId(userId);
+  const rId = toObjectId(restaurantId);
+  if (!uId || !rId) {
+    throw new Error('Invalid userId or restaurantId');
+  }
+
+  const safeItems = (items || [])
+    .map((i) => ({
       menuItemId: toObjectId(i.menuItemId),
       quantity: Number(i.quantity || 1),
       instructions: i.instructions || '',
-    })),
+    }))
+    .filter((i) => i.menuItemId); // drop invalid menuItemIds
+
+  const doc = {
+    userId: uId,
+    restaurantId: rId,
+    items: safeItems,
     notes: notes || '',
     status: 'pending',
     createdAt: new Date(),
@@ -32,15 +42,20 @@ async function getOrderById(id) {
   const doc = await orders.findOne({ _id });
   if (!doc) return null;
 
+  // Return a lean object without Mongo internals
   return {
-    ...doc,
     id: doc._id.toString(),
     userId: doc.userId?.toString(),
     restaurantId: doc.restaurantId?.toString(),
     items: (doc.items || []).map((i) => ({
-      ...i,
       menuItemId: i.menuItemId?.toString(),
+      quantity: Number(i.quantity || 1),
+      instructions: i.instructions || '',
     })),
+    notes: doc.notes || '',
+    status: doc.status || 'pending',
+    createdAt: doc.createdAt,
+    updatedAt: doc.updatedAt,
   };
 }
 

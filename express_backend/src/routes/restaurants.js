@@ -1,5 +1,6 @@
 const express = require('express');
 const restaurantsController = require('../controllers/restaurants');
+const menuController = require('../controllers/menuItems');
 
 const router = express.Router();
 
@@ -45,5 +46,22 @@ router.get('/', restaurantsController.list.bind(restaurantsController));
  *         description: Restaurant details
  */
 router.get('/:id', restaurantsController.getById.bind(restaurantsController));
+
+/**
+ * @swagger
+ * /restaurants/{id}/menu:
+ *   get:
+ *     tags: [Menu]
+ *     summary: List menu for a restaurant
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema: { type: string }
+ *     responses:
+ *       200:
+ *         description: Restaurant menu
+ */
+router.get('/:id/menu', menuController.listByRestaurant.bind(menuController));
 
 module.exports = router;
