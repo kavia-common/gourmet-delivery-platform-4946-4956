@@ -1,69 +1,33 @@
-const { getDb, toObjectId } = require('../db/mongo');
+const { ordersRepo } = require('../db/memory');
 
 // PUBLIC_INTERFACE
 async function createOrder({ userId, restaurantId, items, notes }) {
-  const db = await getDb();
-  const orders = db.collection('orders');
-
-  const uId = toObjectId(userId);
-  const rId = toObjectId(restaurantId);
-  if (!uId || !rId) {
-    throw new Error('Invalid userId or restaurantId');
-  }
-
+  // Normalize items
   const safeItems = (items || [])
     .map((i) => ({
-      menuItemId: toObjectId(i.menuItemId),
+      menuItemId: String(i.menuItemId),
       quantity: Number(i.quantity || 1),
       instructions: i.instructions || '',
     }))
-    .filter((i) => i.menuItemId); // drop invalid menuItemIds
+    .filter((i) => i.menuItemId);
 
-  const doc = {
-    userId: uId,
-    restaurantId: rId,
+  return ordersRepo.insert({
+    userId: String(userId),
+    restaurantId: String(restaurantId),
     items: safeItems,
-    notes: notes || '',
+    notes,
     status: 'pending',
-    createdAt: new Date(),
-    updatedAt: new Date(),
-  };
-
-  const { insertedId } = await orders.insertOne(doc);
-  return { id: insertedId.toString(), status: doc.status };
+  });
 }
 
 // PUBLIC_INTERFACE
 async function getOrderById(id) {
-  const db = await getDb();
-  const orders = db.collection('orders');
-  const _id = toObjectId(id);
-  if (!_id) return null;
-  const doc = await orders.findOne({ _id });
-  if (!doc) return null;
-
-  // Return a lean object without Mongo internals
-  return {
-    id: doc._id.toString(),
-    userId: doc.userId?.toString(),
-    restaurantId: doc.restaurantId?.toString(),
-    items: (doc.items || []).map((i) => ({
-      menuItemId: i.menuItemId?.toString(),
-      quantity: Number(i.quantity || 1),
-      instructions: i.instructions || '',
-    })),
-    notes: doc.notes || '',
-    status: doc.status || 'pending',
-    createdAt: doc.createdAt,
-    updatedAt: doc.updatedAt,
-  };
+  return ordersRepo.findById(String(id));
 }
 
 // PUBLIC_INTERFACE
 async function getOrderStatus(id) {
-  const order = await getOrderById(id);
-  if (!order) return null;
-  return { id: order.id, status: order.status };
+  return ordersRepo.getStatus(String(id));
 }
 
 module.exports = {

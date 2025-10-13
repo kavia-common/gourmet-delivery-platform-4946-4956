@@ -4,6 +4,10 @@ const routes = require('./routes');
 const swaggerUi = require('swagger-ui-express');
 const swaggerSpec = require('../swagger');
 
+/**
+ * App runs in no-DB mode with in-memory repositories.
+ * Data is seeded at startup via src/db/memory.js.
+ */
 // Initialize express app
 const app = express();
 
