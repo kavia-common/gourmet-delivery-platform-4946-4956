@@ -9,7 +9,5 @@ if (!fs.existsSync(outputDir)) {
   fs.mkdirSync(outputDir, { recursive: true });
 }
 
-fs.writeFileSync(
-  outputPath,
-  JSON.stringify(swaggerSpec, null, 2)
-);
+// Persist current swagger spec; dynamic server URL will be provided at runtime via /openapi.json
+fs.writeFileSync(outputPath, JSON.stringify(swaggerSpec, null, 2));
