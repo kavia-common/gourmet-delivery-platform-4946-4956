@@ -4,8 +4,9 @@ class RestaurantsController {
   // PUBLIC_INTERFACE
   async list(req, res) {
     try {
-      const { category, search } = req.query || {};
+      const { category, search, flat } = req.query || {};
       const data = await restaurantsService.listRestaurants({ category, search });
+      if (String(flat) === '1') return res.json(data);
       return res.json({ data });
     } catch (err) {
       return res.status(500).json({ error: 'Failed to list restaurants' });

@@ -13,7 +13,7 @@ class OrdersController {
       const result = await ordersService.createOrder({ userId, restaurantId, items, notes });
       return res.status(201).json(result);
     } catch (err) {
-      return res.status(500).json({ error: 'Failed to create order' });
+      return res.status(500).json({ error: 'Failed to create order', details: err?.message || '' });
     }
   }
 

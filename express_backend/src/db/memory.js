@@ -311,13 +311,15 @@ const ordersRepo = {
     };
     orders.push(doc);
     ordersById.set(id, doc);
-    return { id: doc.id, status: doc.status };
+    // Return both legacy id and orderId for frontend compatibility
+    return { id: doc.id, orderId: doc.id, status: doc.status };
   },
   findById(id) {
     const doc = ordersById.get(id);
     if (!doc) return null;
     return {
       id: doc.id,
+      orderId: doc.id,
       userId: doc.userId,
       restaurantId: doc.restaurantId,
       items: (doc.items || []).map((i) => ({
@@ -334,7 +336,7 @@ const ordersRepo = {
   getStatus(id) {
     const o = ordersById.get(id);
     if (!o) return null;
-    return { id: o.id, status: o.status };
+    return { id: o.id, orderId: o.id, status: o.status };
   },
 };
 

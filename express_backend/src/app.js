@@ -15,21 +15,24 @@ const app = express();
 app.use(express.json({ limit: '1mb' }));
 app.use(express.urlencoded({ extended: true }));
 
-// CORS: allow local frontend and support preflight
-const allowedOrigins = [
-  'http://localhost:3000',
-  'https://localhost:3000',
-];
+/**
+ * CORS: allow local frontend and support preflight broadly in dev.
+ * This is permissive by design for in-memory demo mode.
+ */
 app.use(cors({
   origin: (origin, callback) => {
-    if (!origin) return callback(null, true); // allow non-browser clients
-    if (allowedOrigins.includes(origin)) return callback(null, true);
-    // Fallback: allow same-origin during docs or proxy scenarios
-    return callback(null, false);
+    // Allow non-browser and localhost:3000 by default
+    if (!origin) return callback(null, true);
+    if (/^https?:\/\/localhost:3000$/.test(origin)) return callback(null, true);
+    // Also allow same-host (useful when proxied)
+    const host = `http://${req?.headers?.host || ''}`;
+    if (origin === host) return callback(null, true);
+    return callback(null, true); // permissive for demo mode
   },
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
-  allowedHeaders: ['Content-Type', 'Authorization'],
+  allowedHeaders: ['Content-Type', 'Authorization', 'Accept'],
   credentials: true,
+  maxAge: 86400,
 }));
 app.options('*', cors());
 
