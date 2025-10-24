@@ -1,7 +1,7 @@
 const crypto = require('crypto');
 const jwt = require('jsonwebtoken');
 const dotenv = require('dotenv');
-const { usersRepo } = require('../db/memory');
+const User = require('../models/User');
 
 dotenv.config();
 
@@ -19,17 +19,14 @@ function generateSalt() {
 
 // PUBLIC_INTERFACE
 function generateToken(user) {
-  // Create JWT with minimal fields for client usage
-  return jwt.sign(
-    { id: user.id, email: user.email },
-    JWT_SECRET,
-    { expiresIn: TOKEN_EXPIRES_IN }
-  );
+  /** Issue JWT including Mongo _id as string for client */
+  const id = user.id || user._id?.toString();
+  return jwt.sign({ id, email: user.email }, JWT_SECRET, { expiresIn: TOKEN_EXPIRES_IN });
 }
 
 // PUBLIC_INTERFACE
 async function registerUser({ email, password, name }) {
-  const existing = usersRepo.findByEmail(email);
+  const existing = await User.findOne({ email: String(email).toLowerCase().trim() }).lean();
   if (existing) {
     throw new Error('Email already registered');
   }
@@ -38,14 +35,20 @@ async function registerUser({ email, password, name }) {
   // NOTE: Minimal hashing per seed requirement. For production use bcrypt/argon2.
   const passwordHash = hashPassword(password, salt);
 
-  const user = usersRepo.insert({ email, name: name || '', passwordHash, salt });
-  const token = generateToken(user);
-  return { user: { id: user.id, email: user.email, name: user.name || '' }, token };
+  const created = await User.create({
+    email: String(email).toLowerCase().trim(),
+    name: name || '',
+    passwordHash,
+    salt,
+  });
+
+  const token = generateToken(created);
+  return { user: { id: created._id.toString(), email: created.email, name: created.name || '' }, token };
 }
 
 // PUBLIC_INTERFACE
 async function loginUser({ email, password }) {
-  const user = usersRepo.findByEmail(email);
+  const user = await User.findOne({ email: String(email).toLowerCase().trim() });
   if (!user) {
     throw new Error('Invalid credentials');
   }
@@ -56,7 +59,7 @@ async function loginUser({ email, password }) {
   }
 
   const token = generateToken(user);
-  return { user: { id: user.id, email: user.email, name: user.name || '' }, token };
+  return { user: { id: user._id.toString(), email: user.email, name: user.name || '' }, token };
 }
 
 module.exports = {

@@ -1,14 +1,17 @@
 const cors = require('cors');
 const express = require('express');
+const dotenv = require('dotenv');
 const routes = require('./routes');
 const swaggerUi = require('swagger-ui-express');
 const swaggerSpec = require('../swagger');
+const { connect } = require('./db/mongo');
+
+dotenv.config();
 
 /**
- * App runs in no-DB mode with in-memory repositories.
- * Data is seeded at startup via src/db/memory.js.
+ * App initializes MongoDB connection and serves API with Swagger docs.
+ * CORS and JWT are configured via environment variables.
  */
-// Initialize express app
 const app = express();
 
 // Parse JSON and urlencoded request body early
@@ -16,18 +19,23 @@ app.use(express.json({ limit: '1mb' }));
 app.use(express.urlencoded({ extended: true }));
 
 /**
- * CORS: allow local frontend and support preflight broadly in dev.
- * This is permissive by design for in-memory demo mode.
+ * CORS configuration via env:
+ * - CORS_ORIGIN: comma-separated list or single origin. If not provided, defaults to allowing localhost:3000
  */
+const CORS_ORIGIN = process.env.CORS_ORIGIN || 'http://localhost:3000';
+const allowedOrigins = CORS_ORIGIN.split(',').map((o) => o.trim()).filter(Boolean);
+
 app.use(cors({
-  origin: (origin, callback) => {
-    // Allow non-browser and localhost:3000 by default
+  origin(origin, callback) {
     if (!origin) return callback(null, true);
-    if (/^https?:\/\/localhost:3000$/.test(origin)) return callback(null, true);
-    // Also allow same-host (useful when proxied)
-    const host = `http://${req?.headers?.host || ''}`;
-    if (origin === host) return callback(null, true);
-    return callback(null, true); // permissive for demo mode
+    if (allowedOrigins.includes(origin)) return callback(null, true);
+    // Allow same-host requests (e.g., when proxied)
+    try {
+      const host = `http://${this?.req?.headers?.host || ''}`; // fallback
+      if (origin === host) return callback(null, true);
+    } catch (_) { /* ignore */ }
+    // For safety in production, reject others
+    return callback(new Error('Not allowed by CORS'));
   },
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
   allowedHeaders: ['Content-Type', 'Authorization', 'Accept'],
@@ -37,6 +45,18 @@ app.use(cors({
 app.options('*', cors());
 
 app.set('trust proxy', true);
+
+// Connect to MongoDB on startup
+(async () => {
+  try {
+    await connect();
+    // eslint-disable-next-line no-console
+    console.log('MongoDB connected');
+  } catch (err) {
+    // eslint-disable-next-line no-console
+    console.error('MongoDB connection failed:', err.message);
+  }
+})();
 
 // Serve OpenAPI JSON dynamically with correct server URL
 app.get('/openapi.json', (req, res) => {
@@ -81,14 +101,13 @@ app.use('/docs', swaggerUi.serve, (req, res, next) => {
   swaggerUi.setup(dynamicSpec)(req, res, next);
 });
 
-// Parse JSON request body
-app.use(express.json());
-
 // Mount routes
 app.use('/', routes);
 
 // Error handling middleware
+// eslint-disable-next-line no-unused-vars
 app.use((err, req, res, next) => {
+  // eslint-disable-next-line no-console
   console.error(err.stack);
   res.status(500).json({
     status: 'error',
